@@ -1,0 +1,49 @@
+pool:
+  vmImage: 'ubuntu-16.04'
+
+variables:
+  dyskContainer: dysks
+  dyskName: dysk1.vhd
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.6' 
+    addToPath: true 
+
+- task: Bash@3
+  inputs:
+    targetType: inline
+    script: |
+      set -euo pipefail
+
+      # download prebuilt dysk binaries - these are Noel's unofficial builds and likely to vanish at any moment!
+      RELEASE=$(uname -r)
+      curl -LO https://dyskbinaries.blob.core.windows.net/dysk/$RELEASE/dysk.ko
+      sudo curl -Lo /usr/bin/dyskctl https://dyskbinaries.blob.core.windows.net/dysk/dyskctl
+      sudo chmod 755 /usr/bin/dyskctl
+
+      # install dysk kernel module
+      sudo insmod dysk.ko
+      
+      # mount a dysk
+      sudo dyskctl mount -a $(dyskStorageAcct) -k $(dyskStorageKey) -c $(dyskContainer) -p $(dyskName) -l -b -d dysk1
+
+      # format a dysk
+      #sudo mkfs.ext4 /dev/dysk1
+
+      # mount cache dir
+      sudo mkdir /cache
+      sudo mount /dev/dysk1 /cache
+      sudo chown $USER /cache
+
+      # use cache dir
+      #echo "Hello, world!" > /cache/test.txt
+      #cat /cache/test.txt
+
+      sudo apt-get install -y python-setuptools
+
+      # Install azure-cli (lots of files!)
+      python -m venv /cache/venv
+      source /cache/venv/bin/activate
+      pip install azure-cli
